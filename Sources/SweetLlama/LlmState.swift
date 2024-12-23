@@ -22,7 +22,18 @@ public class LlmState {
         try llm.load(modelPath: modelPath, params: params)
         return LlmState(llm)
     }
-
+    
+    public func embedText(text: String) throws -> [Double]{
+        do {
+            var res = try llm.encodeText(text: text)
+            return res
+        } catch {
+            print("Error embedding text: \(error)")
+            return []
+        }
+        return []
+    }
+    
     /// Predicts the next words given a text prompt.
     /// - Parameters:
     ///  - text: The text prompt.

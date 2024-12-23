@@ -10,13 +10,13 @@ public struct CommonParams {
     public var nGpuLayers: Int = -1
     public var nThreads: Int = -1
     public var sparams: SamplerParams = .init()
-
+    
     public var antiprompt: [String] = []
     public var flashAttn: Bool = false
     public var noPerf: Bool = false
     public var useMmap: Bool = true
     public var useMlock: Bool = false
-
+    public var embedding: Bool = false
     public var seed: UInt32
 
     public init(seed: UInt32 = 42) {
@@ -50,7 +50,12 @@ public struct LlamaCommon {
             return .init()
         }
 
-        let cparams = contextParamsFrom(params)
+        var cparams = contextParamsFrom(params)
+        if !modelPath.contains("Llama"){
+            cparams.embeddings = true
+            cparams.pooling_type = LLAMA_POOLING_TYPE_MEAN // LLAMA_POOLING_TYPE_NONE
+            print("Setting model as embedding model")
+        }
         let ctx = llama_new_context_with_model(model, cparams)
         guard let ctx = ctx else {
             print("Failed to create context")
@@ -74,7 +79,6 @@ public struct LlamaCommon {
         }
         mparams.use_mmap = params.useMmap
         mparams.use_mlock = params.useMlock
-        
         return mparams
     }
 
@@ -82,7 +86,6 @@ public struct LlamaCommon {
         -> llama_context_params
     {
         var cparams = llama_context_default_params()
-
         cparams.n_ctx = UInt32(params.nCTX)
         cparams.n_batch = UInt32(params.nBatch)
         cparams.n_ubatch = UInt32(params.nUBatch)
