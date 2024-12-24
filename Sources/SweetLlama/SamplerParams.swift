@@ -1,5 +1,5 @@
 public class SamplerParams: Codable {
-    public var temperature: Float = 0.2 // lowered temp from 0.7
+    public var temperature: Float = 0.1 // lowered temp from 0.7
     public var topK: Int = 40
     public var topP: Float = 0.95
     public var minP: Float = 0.05
