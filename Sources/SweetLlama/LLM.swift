@@ -49,18 +49,16 @@ public class LLM {
         llama_backend_free()
     }
     
-    
-    
     /// Loads the model from the given path, creates a context, and initializes the sampler.
     /// - Parameters:
     ///  - modelPath: The path to the model file.
     ///  - params: Parameters for model and sampling.
     ///  - Throws: An error if the model fails to load, the context fails to create, or the sampler fails to initialize.
-    public func load(modelPath: String, params: CommonParams, isEmbeddingModel: Bool) throws {
+    public func load(modelPath: String, params: CommonParams, isEmbeddingModel: Bool, embeddingBatchSize: Int) throws {
         unload()
         self.modelPath = modelPath
         self.params = params
-        let initResult = LlamaCommon.initFrom(modelPath, params, isEmbeddingModel: isEmbeddingModel)
+        let initResult = LlamaCommon.initFrom(modelPath, params, isEmbeddingModel: isEmbeddingModel, embeddingBatchSize: embeddingBatchSize)
         model = initResult.model
         ctx = initResult.ctx
         guard let model = model else {
@@ -157,7 +155,7 @@ public class LLM {
         batch.n_tokens += 1
     }
     
-    // Helper function to match C++ batch_add_seq
+    // Helper function to match C++ batch_add_seq for embedding purposes
     func batchAddSeq(batch: inout llama_batch, tokens: [Int32], seqId: Int32) {
         let nTokens = tokens.count
         for i in 0..<nTokens {
@@ -171,7 +169,8 @@ public class LLM {
         }
         
         let nEmbd = Int(llama_n_embd(model))
-        let nBatch = 600 // Define a reasonable batch size based on your use case
+        // batch size of the model based on model card https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF
+        let nBatch = 8192
         
         // Tokenize input text
         var tokens = LlamaCommon.tokenize(model, text, true, true)

@@ -40,7 +40,7 @@ public struct CommonInitResult {
 }
 
 public struct LlamaCommon {
-    public static func initFrom(_ modelPath: String, _ params: CommonParams, isEmbeddingModel: Bool)
+    public static func initFrom(_ modelPath: String, _ params: CommonParams, isEmbeddingModel: Bool, embeddingBatchSize: Int)
     -> CommonInitResult
     {
         let mparams = modelParamsFrom(params)
@@ -54,6 +54,12 @@ public struct LlamaCommon {
         if isEmbeddingModel {
             cparams.embeddings = true
             cparams.pooling_type = LLAMA_POOLING_TYPE_MEAN
+            // we need to increase this for embedding models
+            cparams.n_batch = UInt32(embeddingBatchSize)
+            cparams.n_ubatch = UInt32(embeddingBatchSize)
+        } else {
+            // increase context length for generator models
+            cparams.n_ctx = 25000 // 4096 is default
         }
         let ctx = llama_new_context_with_model(model, cparams)
         guard let ctx = ctx else {

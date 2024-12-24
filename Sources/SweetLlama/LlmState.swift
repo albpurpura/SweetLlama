@@ -15,11 +15,11 @@ public class LlmState {
     ///  - modelPath: Path to the GGUF file.
     ///  - params: Parameters for loading and prediction.
     ///  - Throws: An error if the model fails to load, the context fails to create, or the sampler fails to initialize.
-    public static func create(modelPath: String, params: CommonParams, isEmbeddingModel: Bool) throws
+    public static func create(modelPath: String, params: CommonParams, isEmbeddingModel: Bool, embeddingBatchSize: Int) throws
         -> LlmState
     {
         let llm = LLM()
-        try llm.load(modelPath: modelPath, params: params, isEmbeddingModel: isEmbeddingModel)
+        try llm.load(modelPath: modelPath, params: params, isEmbeddingModel: isEmbeddingModel, embeddingBatchSize: embeddingBatchSize)
         return LlmState(llm)
     }
     
