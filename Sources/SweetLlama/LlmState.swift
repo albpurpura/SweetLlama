@@ -5,7 +5,8 @@ import llama
 public class LlmState {
     private let llm: LLM
     private var stopped: Bool = false
-
+    public var promptWasTruncated: Bool = false
+    
     public init(_ llm: LLM) {
         self.llm = llm
     }
@@ -54,6 +55,11 @@ public class LlmState {
             Task { @LlmActor in
                 do {
                     try llm.acceptPrompt(text)
+                    if llm.truncated {
+                        self.promptWasTruncated = true
+                    } else {
+                        self.promptWasTruncated = false
+                    }
                     while !llm.predictionFinished && !stopped {
                         let result = try llm.predict()
                         continuation.yield(result)

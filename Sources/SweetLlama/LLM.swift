@@ -26,7 +26,7 @@ public class LLM {
     
     private var embd: [llama_token] = []
     
-    private var truncated: Bool = false
+    public var truncated: Bool = false
     private var stoppedEos: Bool = false
     private var stoppedWord: Bool = false
     private var stoppedLimit: Bool = false
@@ -179,7 +179,7 @@ public class LLM {
         
         // Ensure tokens do not exceed batch size
         if nTokens > nBatch {
-            print("Batch size exceeds token count.")
+            print("Embedder batch size exceeds token count.")
             throw LlmError.batchSizeExceedsTokenCount
         }
         
