@@ -56,11 +56,11 @@ public class LLM {
     ///  - modelPath: The path to the model file.
     ///  - params: Parameters for model and sampling.
     ///  - Throws: An error if the model fails to load, the context fails to create, or the sampler fails to initialize.
-    public func load(modelPath: String, params: CommonParams) throws {
+    public func load(modelPath: String, params: CommonParams, isEmbeddingModel: Bool) throws {
         unload()
         self.modelPath = modelPath
         self.params = params
-        let initResult = LlamaCommon.initFrom(modelPath, params)
+        let initResult = LlamaCommon.initFrom(modelPath, params, isEmbeddingModel: isEmbeddingModel)
         model = initResult.model
         ctx = initResult.ctx
         guard let model = model else {
@@ -71,7 +71,8 @@ public class LLM {
         }
         nCTX = Int(llama_n_ctx(ctx))
         
-        if modelPath.contains("Llama") {
+        if !isEmbeddingModel {
+            // embedding models don't need a sampler
             smpl = LlamaCommon.samplerInit(
                 model, params.sparams, seed: UInt32.random(in: 0..<UInt32.max))
             guard let _ = smpl else {
@@ -163,7 +164,7 @@ public class LLM {
             llama_batch_add(&batch, tokens[i], Int32(i), [seqId], true)
         }
     }
-
+    
     public func encodeText(text: String) throws -> [Double] {
         guard let model = model, let ctx = ctx else {
             throw LlmError.notLoaded
@@ -240,84 +241,84 @@ public class LLM {
         // Convert Float array to Double array
         return output.map { Double($0) }
     }
-//    public func encodeText(text: String) throws -> [Double] {
-//        guard let model = model, let ctx = ctx else {
-//            throw LlmError.notLoaded
-//        }
-//
-//        let nEmbd = Int(llama_n_embd(model)) // emb size
-//        let nBatch = 600 // Define a reasonable batch size based on your use case
-//        
-//        // Tokenize input text
-//        var tokens = LlamaCommon.tokenize(model, text, true, true)
-//        let nTokens = tokens.count
-//        
-//        // Ensure tokens do not exceed batch size
-//        if nTokens > nBatch {
-//            print("Batch size exceeds token count.")
-//        }
-//        
-//        // Prepare the batch
-//        var batch = llama_batch_init(Int32(nBatch), 0, 1)
-//        for i in 0..<nTokens {
-//            llama_batch_add(&batch, tokens[i], Int32(i), [0], true)
-//        }
-//        
-//        // Clear KV cache
-//        llama_kv_cache_clear(ctx)
-//        
-//        // Run inference based on model type
-//        if llama_model_has_encoder(model) && !llama_model_has_decoder(model) {
-//            // Encoder-only model
-//            if llama_encode(ctx, batch) != 0 {
-//                throw LlmError.failedToCreateContext
-//            }
-//        } else if !llama_model_has_encoder(model) && llama_model_has_decoder(model) {
-//            // Decoder-only model
-//            if llama_decode(ctx, batch) != 0 {
-//                throw LlmError.failedToCreateContext
-//            }
-//        } else {
-//            print("Unsupported model type.")
-//            return []
-//        }
-//        
-//        // Fetch pooling type to decide how to fetch embeddings
-//        let poolingType = llama_pooling_type(ctx)
-//        
-//        // Extract embeddings based on pooling type
-//        var output = [Float](repeating: 0, count: nTokens * nEmbd)
-//        
-//        if poolingType == LLAMA_POOLING_TYPE_NONE {
-//            // Token embeddings
-//            for i in 0..<nTokens {
-//                guard let emb = llama_get_embeddings_ith(ctx, Int32(i)) else {
-//                    print("failed to extract token embeddings")
-//                    return []
-//                }
-//                for j in 0..<nEmbd {
-//                    output[i * nEmbd + j] = emb[j]
-//                }
-//            }
-//        } else {
-//            
-//            // Sequence embeddings (for pooling types other than NONE)
-//            for i in 0..<nTokens {
-//                guard let emb = llama_get_embeddings_seq(ctx, batch.seq_id[i]![0]) else {
-//                    print("failed to extract sequence embeddings")
-//                    return []
-//                }
-//                for j in 0..<nEmbd {
-//                    output[i * nEmbd + j] = emb[j]
-//                }
-//                
-//            }
-//        }
-//        
-//        // Convert embeddings to [Double] and return
-//        return output.map { Double($0) }
-//    }
-
+    //    public func encodeText(text: String) throws -> [Double] {
+    //        guard let model = model, let ctx = ctx else {
+    //            throw LlmError.notLoaded
+    //        }
+    //
+    //        let nEmbd = Int(llama_n_embd(model)) // emb size
+    //        let nBatch = 600 // Define a reasonable batch size based on your use case
+    //        
+    //        // Tokenize input text
+    //        var tokens = LlamaCommon.tokenize(model, text, true, true)
+    //        let nTokens = tokens.count
+    //        
+    //        // Ensure tokens do not exceed batch size
+    //        if nTokens > nBatch {
+    //            print("Batch size exceeds token count.")
+    //        }
+    //        
+    //        // Prepare the batch
+    //        var batch = llama_batch_init(Int32(nBatch), 0, 1)
+    //        for i in 0..<nTokens {
+    //            llama_batch_add(&batch, tokens[i], Int32(i), [0], true)
+    //        }
+    //        
+    //        // Clear KV cache
+    //        llama_kv_cache_clear(ctx)
+    //        
+    //        // Run inference based on model type
+    //        if llama_model_has_encoder(model) && !llama_model_has_decoder(model) {
+    //            // Encoder-only model
+    //            if llama_encode(ctx, batch) != 0 {
+    //                throw LlmError.failedToCreateContext
+    //            }
+    //        } else if !llama_model_has_encoder(model) && llama_model_has_decoder(model) {
+    //            // Decoder-only model
+    //            if llama_decode(ctx, batch) != 0 {
+    //                throw LlmError.failedToCreateContext
+    //            }
+    //        } else {
+    //            print("Unsupported model type.")
+    //            return []
+    //        }
+    //        
+    //        // Fetch pooling type to decide how to fetch embeddings
+    //        let poolingType = llama_pooling_type(ctx)
+    //        
+    //        // Extract embeddings based on pooling type
+    //        var output = [Float](repeating: 0, count: nTokens * nEmbd)
+    //        
+    //        if poolingType == LLAMA_POOLING_TYPE_NONE {
+    //            // Token embeddings
+    //            for i in 0..<nTokens {
+    //                guard let emb = llama_get_embeddings_ith(ctx, Int32(i)) else {
+    //                    print("failed to extract token embeddings")
+    //                    return []
+    //                }
+    //                for j in 0..<nEmbd {
+    //                    output[i * nEmbd + j] = emb[j]
+    //                }
+    //            }
+    //        } else {
+    //            
+    //            // Sequence embeddings (for pooling types other than NONE)
+    //            for i in 0..<nTokens {
+    //                guard let emb = llama_get_embeddings_seq(ctx, batch.seq_id[i]![0]) else {
+    //                    print("failed to extract sequence embeddings")
+    //                    return []
+    //                }
+    //                for j in 0..<nEmbd {
+    //                    output[i * nEmbd + j] = emb[j]
+    //                }
+    //                
+    //            }
+    //        }
+    //        
+    //        // Convert embeddings to [Double] and return
+    //        return output.map { Double($0) }
+    //    }
+    
     
     
     /// Generates the next token.

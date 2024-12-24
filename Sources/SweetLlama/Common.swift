@@ -18,7 +18,7 @@ public struct CommonParams {
     public var useMlock: Bool = false
     public var embedding: Bool = false
     public var seed: UInt32
-
+    
     public init(seed: UInt32 = 42) {
         self.seed = seed
     }
@@ -27,12 +27,12 @@ public struct CommonParams {
 public struct CommonInitResult {
     public let model: OpaquePointer?
     public let ctx: OpaquePointer?
-
+    
     public init() {
         model = nil
         ctx = nil
     }
-
+    
     public init(_ model: OpaquePointer, _ ctx: OpaquePointer) {
         self.model = model
         self.ctx = ctx
@@ -40,8 +40,8 @@ public struct CommonInitResult {
 }
 
 public struct LlamaCommon {
-    public static func initFrom(_ modelPath: String, _ params: CommonParams)
-        -> CommonInitResult
+    public static func initFrom(_ modelPath: String, _ params: CommonParams, isEmbeddingModel: Bool)
+    -> CommonInitResult
     {
         let mparams = modelParamsFrom(params)
         let model = llama_load_model_from_file(modelPath, mparams)
@@ -49,12 +49,11 @@ public struct LlamaCommon {
             print("Failed to load model")
             return .init()
         }
-
+        
         var cparams = contextParamsFrom(params)
-        if !modelPath.contains("Llama"){
+        if isEmbeddingModel {
             cparams.embeddings = true
-            cparams.pooling_type = LLAMA_POOLING_TYPE_MEAN // LLAMA_POOLING_TYPE_NONE
-            print("Setting model as embedding model")
+            cparams.pooling_type = LLAMA_POOLING_TYPE_MEAN
         }
         let ctx = llama_new_context_with_model(model, cparams)
         guard let ctx = ctx else {
@@ -62,15 +61,15 @@ public struct LlamaCommon {
             llama_free_model(model)
             return .init()
         }
-
+        
         return .init(model, ctx)
     }
-
+    
     public static func modelParamsFrom(_ params: CommonParams)
-        -> llama_model_params
+    -> llama_model_params
     {
         var mparams = llama_model_default_params()
-
+        
         if params.nGpuLayers != -1 {
             mparams.n_gpu_layers = Int32(params.nGpuLayers)
 #if targetEnvironment(simulator)
@@ -81,9 +80,9 @@ public struct LlamaCommon {
         mparams.use_mlock = params.useMlock
         return mparams
     }
-
+    
     public static func contextParamsFrom(_ params: CommonParams)
-        -> llama_context_params
+    -> llama_context_params
     {
         var cparams = llama_context_default_params()
         cparams.n_ctx = UInt32(params.nCTX)
@@ -98,22 +97,22 @@ public struct LlamaCommon {
         }
         cparams.flash_attn = params.flashAttn
         cparams.no_perf = params.noPerf
-
+        
         return cparams
     }
-
+    
     public static func samplerInit(
         _ model: OpaquePointer, _ params: SamplerParams, seed: UInt32
     ) -> UnsafeMutablePointer<llama_sampler>? {
-
+        
         var lparams = llama_sampler_chain_default_params()
         lparams.no_perf = false
-
+        
         guard let chain = llama_sampler_chain_init(lparams) else {
             print("failed to init sampler chain")
             return nil
         }
-
+        
         llama_sampler_chain_add(
             chain,
             llama_sampler_init_penalties(
@@ -126,7 +125,7 @@ public struct LlamaCommon {
                 params.penaltyPresent,
                 false,
                 false))
-
+        
         if params.mirostat == .none {
             do {
                 let defaultDryBreakers = ["\n", ":", "\"", "*"]
@@ -149,33 +148,33 @@ public struct LlamaCommon {
                             defaultDryBreakers.count))
                 }
             }
-
+            
             llama_sampler_chain_add(
                 chain,
                 llama_sampler_init_top_k(Int32(params.topK)))
-
+            
             llama_sampler_chain_add(
                 chain,
                 llama_sampler_init_top_p(params.topP, params.minKeep))
-
+            
             llama_sampler_chain_add(
                 chain,
                 llama_sampler_init_min_p(params.minP, params.minKeep))
-
+            
             llama_sampler_chain_add(
                 chain,
                 llama_sampler_init_xtc(
                     params.xtcProbability, params.xtcThreshold, params.minKeep,
                     seed))
-
+            
             llama_sampler_chain_add(
                 chain,
                 llama_sampler_init_typical(params.typicalP, params.minKeep))
-
+            
             llama_sampler_chain_add(
                 chain,
                 llama_sampler_init_temp(params.temperature))
-
+            
             llama_sampler_chain_add(
                 chain,
                 llama_sampler_init_dist(seed))
@@ -202,10 +201,10 @@ public struct LlamaCommon {
                     params.mirostatTau,
                     params.mirostatEta))
         }
-
+        
         return chain
     }
-
+    
     public static func tokenToPiece(
         _ ctx: OpaquePointer, _ token: llama_token, _ special: Bool
     ) -> [CChar] {
@@ -232,17 +231,17 @@ public struct LlamaCommon {
         } else {
             piece.removeSubrange(nChars..<piece.count)
         }
-
+        
         return piece
     }
-
+    
     public static func tokenize(
         _ model: OpaquePointer, _ text: String, _ addSpecial: Bool,
         _ parseSpecial: Bool
     ) -> [llama_token] {
         let utf8Count = text.utf8.count
         let n_tokens = utf8Count + (addSpecial ? 1 : 0) + 1
-
+        
         return Array(unsafeUninitializedCapacity: n_tokens) {
             buffer, initializedCount in
             initializedCount = Int(
