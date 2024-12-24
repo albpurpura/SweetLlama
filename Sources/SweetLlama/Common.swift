@@ -59,7 +59,7 @@ public struct LlamaCommon {
             cparams.n_ubatch = UInt32(embeddingBatchSize)
         } else {
             // increase context length for generator models
-            cparams.n_ctx = 25000 // 4096 is default
+            cparams.n_ctx = 20000 // 4096 is default
         }
         let ctx = llama_new_context_with_model(model, cparams)
         guard let ctx = ctx else {

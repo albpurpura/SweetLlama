@@ -27,7 +27,12 @@ public class LlmState {
         do {
             var res = try llm.encodeText(text: text)
             return res
-        } catch {
+        } catch LlmError.batchSizeExceedsTokenCount {
+            throw LlmError.batchSizeExceedsTokenCount
+            print("Batch size exceeds token count")
+            return []
+        }
+        catch {
             print("Error embedding text: \(error)")
             return []
         }
